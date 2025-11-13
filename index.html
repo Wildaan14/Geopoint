@@ -68,7 +68,7 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-se
 </head>
 <body>
   <div class="header">
-       <h1><i class="fas fa-globe-americas"></i> WebGIS Smart Urban Dynamics di Jabodetabek</h1>
+       <h1><i class="fas fa-globe-americas"></i> WebGIS Analisis Laju Urbanisasi di Jabodetabek</h1>
        <p><i class="fas fa-leaf"></i> Analisis Laju, Tipologi Ekspansi, dan Dampak UHI dengan Menggunakan Nightime Lights, Indeks Landsat, dan CNN Siamese</p>
     </div>
 
@@ -214,7 +214,7 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-se
 
         <div class="layer-item">
           <input type="checkbox" id="CNN" data-file="CNN.geojson">
-          <label for="CNN">Peta Smart Urban Dynamics</label>
+          <label for="CNN">Peta Fusi CNN-NUI</label>
         </div>
         <div class="opacity-control" id="CNN-opacity">
           <label>Transparansi: <span id="CNN-value">80</span>%</label>
@@ -228,7 +228,7 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-se
       <div class="coord-display" id="coordDisplay"><i class="fas fa-crosshairs"></i> Lat: -, Lng: -</div>
       <div class="legend" id="legend"><h5><i class="fas fa-palette"></i> Legend</h5><div id="legendContent"></div></div>
 
-      <!-- Info Panel & Toast -->
+      <!-- Info Panel & Toast (dibutuhkan UI helpers) -->
       <div class="info-panel" id="infoPanel"><div id="infoContent"></div></div>
       <div class="toast" id="toast"><span id="toastContent"></span></div>
     </div>
@@ -247,10 +247,6 @@ class EnhancedGeospatialApp{
     this.layers=new Map(); // id -> L.GeoJSON
     this.meta=new Map();   // id -> info legend/stat
     this.isMobile=window.innerWidth<=768;
-
-    // Khusus 3 kelas (RST) hanya untuk bagian DL & Validasi
-    this.DL_VALIDATION_IDS = ['DeltaNTL','ketidakpastian','CNN'];
-
     this.init();
   }
 
@@ -269,15 +265,15 @@ class EnhancedGeospatialApp{
       '🌍 OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19, attribution: '© OpenStreetMap'
       }),
-      '🛰 Satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      '🛰️ Satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 18
       }),
-      '🏔 Terrain': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      '🏔️ Terrain': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
         attribution: 'Map data: © OpenStreetMap contributors, SRTM | Style: © OpenTopoMap', maxZoom: 16
       })
     };
 
-    base['🛰 Satellite'].addTo(this.map);
+    base['🛰️ Satellite'].addTo(this.map);
     L.control.layers(base, null, { position: 'topright', collapsed: this.isMobile }).addTo(this.map);
     this.map.on('mousemove', e => this.updateCoordinateDisplay(e.latlng));
   }
@@ -288,7 +284,7 @@ class EnhancedGeospatialApp{
       cb.addEventListener('change', async e=>{
         const id=e.target.id; const file=e.target.dataset.file;
         const item=e.target.closest('.layer-item');
-        if(e.target.checked){ item.classList.add('active'); await this.loadLayer(id,file); this.showOpacityControl(id,true); this.showLayerDetails?.(item); }
+        if(e.target.checked){ item.classList.add('active'); await this.loadLayer(id,file); this.showOpacityControl(id,true); this.showLayerDetails(item); }
         else{ item.classList.remove('active'); this.removeLayer(id); this.showOpacityControl(id,false); }
       });
     });
@@ -296,7 +292,7 @@ class EnhancedGeospatialApp{
     document.querySelectorAll('input[type=range]').forEach(sl=>{
       sl.addEventListener('input',e=>{
         const id=e.target.dataset.layer; const op=e.target.value/100;
-        const span=document.getElementById(${id}-value); if(span) span.textContent=e.target.value;
+        const span=document.getElementById(`${id}-value`); if(span) span.textContent=e.target.value;
         if(this.layers.has(id)){
           const g=this.layers.get(id);
           g.setStyle?.({fillOpacity:op,opacity:op});
@@ -309,14 +305,14 @@ class EnhancedGeospatialApp{
     toggle.addEventListener('click',()=>{sidebar.classList.toggle('open'); toggle.innerHTML=sidebar.classList.contains('open')?'<i class="fas fa-times"></i>':'<i class="fas fa-bars"></i>';});
   }
 
-  // ===== UI helpers =====
+  // ===== UI helpers (disisipkan) =====
   removeLayer(layerId){
     if (this.layers.has(layerId)) {
       const lyr = this.layers.get(layerId);
       this.map.removeLayer(lyr);
       this.layers.delete(layerId);
       this.meta.delete(layerId);
-      this.showToast(Layer ${this.getLayerName(layerId)} dihapus, 'info');
+      this.showToast(`Layer ${this.getLayerName(layerId)} dihapus`, 'info');
     }
     this.showOpacityControl(layerId, false);
     if (this.layers.size === 0) {
@@ -326,19 +322,19 @@ class EnhancedGeospatialApp{
   }
 
   showOpacityControl(layerId, show){
-    const opacityControl = document.getElementById(${layerId}-opacity);
+    const opacityControl = document.getElementById(`${layerId}-opacity`);
     if (opacityControl) opacityControl.classList.toggle('show', !!show);
   }
 
   updateCoordinateDisplay(latlng){
     const coordDisplay = document.getElementById('coordDisplay');
     const lat = latlng.lat.toFixed(6); const lng = latlng.lng.toFixed(6);
-    coordDisplay.innerHTML = <i class="fas fa-crosshairs"></i> <strong>Lat:</strong> ${lat}, <strong>Lng:</strong> ${lng};
+    coordDisplay.innerHTML = `<i class="fas fa-crosshairs"></i> <strong>Lat:</strong> ${lat}, <strong>Lng:</strong> ${lng}`;
     this.currentCoords = { lat, lng };
   }
 
   showLocationInfo(latlng){
-    const info = { coordinates: ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}, activeLayersCount: this.layers.size };
+    const info = { coordinates: `${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`, activeLayersCount: this.layers.size };
     const infoPanel = document.getElementById('infoPanel');
     const infoContent = document.getElementById('infoContent');
     infoContent.innerHTML = `
@@ -357,12 +353,12 @@ class EnhancedGeospatialApp{
   }
 
   getInitialOpacity(layerId){
-    const s=document.querySelector(input[data-layer="${layerId}"]);
+    const s=document.querySelector(`input[data-layer="${layerId}"]`);
     return s ? s.value/100 : 0.7;
   }
 
   getLayerName(layerId){
-    const labelElement = document.querySelector(label[for="${layerId}"]);
+    const labelElement = document.querySelector(`label[for="${layerId}"]`);
     return labelElement ? labelElement.textContent : layerId;
   }
 
@@ -375,7 +371,7 @@ class EnhancedGeospatialApp{
 
   showError(message){
     const errorDiv = document.getElementById('errorMessage');
-    errorDiv.innerHTML = <i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> ${message};
+    errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> ${message}`;
     errorDiv.style.display = 'block';
     setTimeout(()=>{ errorDiv.style.display='none'; }, 10000);
   }
@@ -383,7 +379,7 @@ class EnhancedGeospatialApp{
 
   showSuccess(message){
     const successDiv=document.getElementById('successMessage'); if(!successDiv) return;
-    successDiv.innerHTML = <i class="fas fa-check-circle"></i> <strong>Berhasil:</strong> ${message};
+    successDiv.innerHTML = `<i class="fas fa-check-circle"></i> <strong>Berhasil:</strong> ${message}`;
     successDiv.style.display='block';
     setTimeout(()=>{ successDiv.style.display='none'; }, 5000);
   }
@@ -392,8 +388,8 @@ class EnhancedGeospatialApp{
     const toast=document.getElementById('toast');
     const toastContent=document.getElementById('toastContent');
     const icons={success:'fas fa-check-circle',error:'fas fa-exclamation-circle',warning:'fas fa-exclamation-triangle',info:'fas fa-info-circle'};
-    toastContent.innerHTML=<i class="${icons[type]||icons.info}"></i> ${message};
-    toast.className=toast ${type} show;
+    toastContent.innerHTML=`<i class="${icons[type]||icons.info}"></i> ${message}`;
+    toast.className=`toast ${type} show`;
     setTimeout(()=>toast.classList.remove('show'),4000);
   }
 
@@ -448,11 +444,11 @@ class EnhancedGeospatialApp{
 
   // ====== Data loading & styling  ======
   async fetchGeoJSON(filename){
-    const ensureExt=(n)=>/\.geojson$|\.geojsn$/i.test(n)?n:${n}.geojson;
+    const ensureExt=(n)=>/\.geojson$|\.geojsn$/i.test(n)?n:`${n}.geojson`;
     const f=ensureExt(filename||'');
-    const paths=[geojsn/${f},geojson/${f}];
+    const paths=[`geojsn/${f}`,`geojson/${f}`];
     for(const p of paths){ const r=await fetch(p,{cache:'no-store'}); if(r.ok) return {json: await r.json(), path:p}; }
-    throw new Error(File tidak ditemukan di 'geojsn/' maupun 'geojson/': ${f});
+    throw new Error(`File tidak ditemukan di 'geojsn/' maupun 'geojson/': ${f}`);
   }
 
   async loadLayer(layerId, filename){
@@ -461,7 +457,6 @@ class EnhancedGeospatialApp{
       const {json:gj, path} = await this.fetchGeoJSON(filename);
       const op=this.getInitialOpacity(layerId);
 
-      // ---- Khusus kategori: Tipologi ----
       if(layerId==='tipologi'){
         gj.features=(gj.features||[]).filter(f=>{
           const v=f?.properties?.pinggiran; return v!==null && v!==undefined && String(v).trim()!=='';
@@ -470,55 +465,44 @@ class EnhancedGeospatialApp{
           style:(ft)=>this.styleTipologi(ft,op),
           onEachFeature:(ft,ly)=>{
             const nm=ft?.properties?.name||ft?.properties?.NAMOBJ||'Fitur';
-            ly.bindPopup(<strong>Tipologi</strong><br>${nm}<br><code>${ft.properties.pinggiran}</code>);
+            ly.bindPopup(`<strong>Tipologi</strong><br>${nm}<br><code>${ft.properties.pinggiran}</code>`);
           }
         }).addTo(this.map);
         this.layers.set(layerId,geo);
         this.meta.set(layerId,{type:'categorical',field:'pinggiran',path});
         if(geo.getBounds()?.isValid()) this.map.fitBounds(geo.getBounds(),{padding:[20,20]});
-        this.updateLegendTipologi(); 
-        return;
+        this.updateLegendTipologi(); return;
       }
 
-      // ---- Khusus ordinal: Gi_Bin Hotspot ----
       if(layerId==='hotspot'){
         gj.features=(gj.features||[]).filter(f=>Number.isFinite(Number(f?.properties?.Gi_Bin)));
         const geo=L.geoJSON(gj,{
           style:(ft)=>this.styleGiBin(ft,op),
           onEachFeature:(ft,ly)=>{
             const nm=ft?.properties?.name||ft?.properties?.NAMOBJ||'Fitur';
-            ly.bindPopup(<strong>Hotspot (Gi_Bin)</strong><br>${nm}<br><code>Gi_Bin: ${ft.properties.Gi_Bin}</code>);
+            ly.bindPopup(`<strong>Hotspot (Gi_Bin)</strong><br>${nm}<br><code>Gi_Bin: ${ft.properties.Gi_Bin}</code>`);
           }
         }).addTo(this.map);
         this.layers.set(layerId,geo);
         this.meta.set(layerId,{type:'gi_bin',field:'Gi_Bin',path});
         if(geo.getBounds()?.isValid()) this.map.fitBounds(geo.getBounds(),{padding:[20,20]});
-        this.updateLegendGiBin(); 
-        return;
+        this.updateLegendGiBin(); return;
       }
 
-      // ---- Choropleth kuantitatif umum ----
       gj.features=(gj.features||[]).filter(f=>{
         const v=f?.properties?._mean; return v!==null && v!==undefined && isFinite(v);
       });
-
       const vals=gj.features.map(f=>Number(f.properties._mean));
-      const isRST = this.DL_VALIDATION_IDS.includes(layerId);
-      const numClasses = isRST ? 3 : 5;
-
-      let breaks=null, stats=null;
-      const paletteFull=this.getPalette(layerId);
-      const palette = isRST ? [paletteFull[0], paletteFull[2], paletteFull[4]] : paletteFull;
-
-      const styleDefault={color:'#333',weight:.8,fillColor:palette[0]||'#4caf50',fillOpacity:op,opacity:op};
+      let breaks=null, stats=null, palette=this.getPalette(layerId);
+      const styleDefault={color:'#333',weight:.8,fillColor:'#4caf50',fillOpacity:op,opacity:op};
       let styleFn=()=>styleDefault;
 
       if(vals.length>0){
-        breaks=this.quantileBreaks(vals, numClasses); // 2 break utk 3 kelas; 4 break utk 5 kelas
+        breaks=this.quantileBreaks(vals,4);
         stats={min:Math.min(...vals),max:Math.max(...vals),mean:vals.reduce((a,b)=>a+b,0)/vals.length,count:vals.length};
         styleFn=(ft)=>{
           const v=Number(ft?.properties?._mean);
-          const cls = isRST ? this.classOfK(v,breaks) : this.classOf(v,breaks); // 0..(k-1)
+          const cls=this.classOf(v,breaks);
           const fill=palette[cls]||palette[palette.length-1];
           return {color:'#333',weight:.8,fillColor:fill,fillOpacity:op,opacity:op};
         };
@@ -527,23 +511,16 @@ class EnhancedGeospatialApp{
       const geo=L.geoJSON(gj,{style:styleFn, onEachFeature:(ft,ly)=>{
         const nm=ft?.properties?.name||ft?.properties?.NAMOBJ||'Fitur';
         const mv=ft?.properties?._mean;
-        ly.bindPopup(<strong>${this.pretty(layerId)}</strong><br>${nm}<br><code>_mean: ${isFinite(mv)?Number(mv).toFixed(5):'-'}</code>);
+        ly.bindPopup(`<strong>${this.pretty(layerId)}</strong><br>${nm}<br><code>_mean: ${isFinite(mv)?Number(mv).toFixed(4):'-'}</code>`);
       }}).addTo(this.map);
 
       this.layers.set(layerId,geo);
       this.meta.set(layerId,{type:'_mean',breaks,stats,palette,path});
 
       if(geo.getBounds()?.isValid()) this.map.fitBounds(geo.getBounds(),{padding:[20,20]});
-      // Legend: RST untuk DL&Validasi; lainnya tetap numerik (5-kelas)
-      if(breaks&&stats){
-        if (isRST) this.updateLegendRST(this.pretty(layerId), palette);
-        else this.updateLegendChoropleth(this.pretty(layerId), breaks, palette, stats);
-      } else {
-        this.updateLegendSimple(this.pretty(layerId));
-      }
-      this.showSuccess(Layer ${this.getLayerName(layerId)} dimuat);
-      return;
-
+      if(breaks&&stats) this.updateLegendChoropleth(this.pretty(layerId),breaks,palette,stats);
+      else this.updateLegendSimple(this.pretty(layerId));
+      this.showSuccess(`Layer ${this.getLayerName(layerId)} dimuat`);
     }catch(err){
       this.showError(err.message||err);
       const cb=document.getElementById(layerId); if(cb){cb.checked=false; cb.closest('.layer-item')?.classList.remove('active');}
@@ -552,25 +529,24 @@ class EnhancedGeospatialApp{
     }
   }
 
-  // ===== Palettes & styles =====
+  // ===== Palettes & styles (tetap) =====
   getPalette(id){
     const p={
-      ndvi_topo:['#edf8fb', '#b2e2e2', '#66c2a4', '#238b45', '#00441b'],
-      ndbi:['#f1eef6', '#bdc9e1', '#74a9cf', '#0570b0', '#023858'],
-      lst:['#fff7ec', '#fee8c8', '#fdbb84', '#e34a33', '#b30000'],
-      kepadatan:['#f7fbff', '#c6dbef', '#6baed6', '#2171b5', '#08306b'],
-      ntl:['#000000', '#444444', '#FFD700', '#FFF2B2', '#FFFFFF'],
-      nui: ['#d9f0a3', '#78c679', '#41b6c4', '#253494', '#081d58'],
-      DeltaLST :['#fff7ec', '#fee8c8', '#fdbb84', '#e34a33', '#b30000'],
-      DeltaNDVI:['#edf8fb', '#b2e2e2', '#66c2a4', '#238b45', '#00441b'],
-      DeltaNDBI :['#f1eef6', '#bdc9e1', '#74a9cf', '#0570b0', '#023858'],
-      DeltaNTL : ['#fee5d9', '#fcae91', '#fb6a4a', '#cb181d', '#99000d'],
-      ketidakpastian:['#E5F1F5', '#9CB2D0', '#8D74AD', '#830A7A', '#4B0055'],
-      CNN : ['#3C3C3C', '#CFCFCF', '#F8C6AD', '#C61021', '#66000A'],
+      ndvi_topo:['#edf8fb','#b2e2e2','#66c2a4','#238b45'],
+      ndbi:['#f1eef6','#bdc9e1','#74a9cf','#0570b0'],
+      lst:['#fff7ec','#fee8c8','#fdbb84','#e34a33'],
+      kepadatan:['#f7fbff','#c6dbef','#6baed6','#2171b5'],
+      ntl:['#000000','#444444','#FFD700','#FFFFFF'],
+      nui: ['#d9f0a3','#78c679','#41b6c4','#253494'],
+      DeltaLST :['#fff7ec','#fee8c8','#fdbb84','#e34a33'],
+      DeltaNDVI:['#edf8fb','#b2e2e2','#66c2a4','#238b45'],
+      DeltaNDBI :['#f1eef6','#bdc9e1','#74a9cf','#0570b0'],
+      DeltaNTL : ['#fee5d9','#fcae91','#fb6a4a','#cb181d'],
+      ketidakpastian:['#E5F1F5','#9CB2D0','#8D74AD','#830A7A'],
+      CNN : ['#3C3C3C', '#CFCFCF', '#F8C6AD', '#C61021'],
     };
-    return p[id] || ['#f7f7f7', '#cccccc', '#969696', '#525252', '#252525'];
+    return p[id] || ['#f7f7f7','#cccccc','#969696','#525252'];
   }
-
   styleTipologi(ft,op){
     const raw=(ft?.properties?.pinggiran??'').toString().toLowerCase().trim();
     const key=raw.replace('densificat','densification').replace('linear cor','linear corridor');
@@ -585,50 +561,24 @@ class EnhancedGeospatialApp{
     return {color:'#333',weight:.8,fillColor:fill,fillOpacity:op,opacity:op};
   }
 
-  // ===== Quantile & legend =====
-  quantileBreaks(values,k=5){
+  // ===== Quantile & legend (tetap) =====
+  quantileBreaks(values,k=4){
     const v=values.filter(x=>isFinite(x)).sort((a,b)=>a-b);
     if(!v.length) return [];
     const br=[]; for(let i=1;i<k;i++){ const pos=i*(v.length-1)/k, lo=Math.floor(pos), hi=Math.ceil(pos), t=pos-lo; br.push((1-t)*v[lo]+t*v[hi]); }
-    return br; // panjang k-1
+    return br;
   }
-  // Untuk 5-kelas (lama)
-  classOf(v,br){ if(!br?.length || !isFinite(v)) return 0;
-    // br panjangnya 4 → hasil 0..4
-    if(v<=br[0])return 0; if(v<=br[1])return 1; if(v<=br[2])return 2; if(v<=br[3])return 3; return 4; }
-  // Generik untuk K-kelas (dipakai 3-kelas RST)
-  classOfK(v,br){ if(!br?.length || !isFinite(v)) return 0; let i=0; while(i<br.length && v>br[i]) i++; return i; }
+  classOf(v,br){ if(!br?.length || !isFinite(v)) return 0; if(v<=br[0])return 0; if(v<=br[1])return 1; if(v<=br[2])return 2; return 3; }
 
-  // Legend 5-kelas numerik (tetap seperti semula, tapi dinamis)
   updateLegendChoropleth(title,breaks,palette,stats){
     const Lg=document.getElementById('legend'), C=document.getElementById('legendContent');
-    const f=x=>Number(x).toFixed(4);
-    const labels=[];
-    // breaks length = k-1 → k kelas
-    for(let i=0;i<=breaks.length;i++){
-      if(i===0) labels.push(≤ ${f(breaks[0])});
-      else if(i===breaks.length) labels.push(> ${f(breaks[breaks.length-1])});
-      else labels.push(${f(breaks[i-1])} – ${f(breaks[i])});
-    }
-    let html=<div style="font-weight:700;color:var(--primary-color);margin-bottom:6px">${title}</div>;
-    for(let i=0;i<labels.length;i++){
-      html+=<div class="legend-item"><div class="legend-color" style="background:${palette[i]||palette[palette.length-1]}"></div><span>${labels[i]}</span></div>;
-    }
-    html+=<div style="margin-top:6px;font-size:11px;color:#555"><b>Min</b> ${f(stats.min)} &nbsp; <b>Max</b> ${f(stats.max)} &nbsp; <b>N</b> ${stats.count}</div>;
+    const f=x=>Number(x).toFixed(3);
+    const ranges=[`≤ ${f(breaks[0])}`,`${f(breaks[0])} – ${f(breaks[1])}`,`${f(breaks[1])} – ${f(breaks[2])}`,`> ${f(breaks[2])}`];
+    let html=`<div style="font-weight:700;color:var(--primary-color);margin-bottom:6px">${title}</div>`;
+    for(let i=0;i<4;i++){ html+=`<div class="legend-item"><div class="legend-color" style="background:${palette[i]}"></div><span>${ranges[i]}</span></div>`; }
+    html+=`<div style="margin-top:6px;font-size:11px;color:#555"><b>Min</b> ${f(stats.min)} &nbsp; <b>Max</b> ${f(stats.max)} &nbsp; <b>N</b> ${stats.count}</div>`;
     C.innerHTML=html; Lg.style.display='block';
   }
-
-  // Legend 3-kelas RST
-  updateLegendRST(title, palette){
-    const Lg=document.getElementById('legend'), C=document.getElementById('legendContent');
-    const labels=['Rendah','Sedang','Tinggi'];
-    let html=<div style="font-weight:700;color:var(--primary-color);margin-bottom:6px">${title}</div>;
-    for(let i=0;i<3;i++){
-      html+=<div class="legend-item"><div class="legend-color" style="background:${palette[i]}"></div><span>${labels[i]}</span></div>;
-    }
-    C.innerHTML=html; Lg.style.display='block';
-  }
-
   updateLegendSimple(title){
     const Lg=document.getElementById('legend'), C=document.getElementById('legendContent');
     C.innerHTML=`<div style="font-weight:700;color:var(--primary-color);margin-bottom:6px">${title}</div>
@@ -638,15 +588,15 @@ class EnhancedGeospatialApp{
   updateLegendTipologi(){
     const Lg=document.getElementById('legend'), C=document.getElementById('legendContent');
     const items=[{label:'Densification',color:'#FFFCC4'},{label:'Linear Corridor',color:'#B23A7F'},{label:'Sprawl',color:'#3B0B77'},{label:'Stable',color:'#000000'}];
-    let html=<div style="font-weight:700;color:var(--primary-color);margin-bottom:6px">Tipologi</div>;
-    items.forEach(i=>{ html+=<div class="legend-item"><div class="legend-color" style="background:${i.color}"></div><span>${i.label}</span></div>;});
+    let html=`<div style="font-weight:700;color:var(--primary-color);margin-bottom:6px">Tipologi</div>`;
+    items.forEach(i=>{ html+=`<div class="legend-item"><div class="legend-color" style="background:${i.color}"></div><span>${i.label}</span></div>`;});
     C.innerHTML=html; Lg.style.display='block';
   }
   updateLegendGiBin() {
     const Lg=document.getElementById('legend'); const C=document.getElementById('legendContent');
     const order=[{"-3":"#0B4F8A"},{"-2":"#5AA9E6"},{"-1":"#A9D6E5"},{"0":"#FFFFFF"},{"1":"#FDD5C2"},{"2":"#F46D43"},{"3":"#D73027"}];
-    let html=<div style="font-weight:700;color:var(--primary-color);margin-bottom:6px">Hotspot</div>;
-    order.forEach(o=>{ const k=Object.keys(o)[0]; html+=<div class="legend-item"><div class="legend-color" style="background:${o[k]}"></div><span>${k}</span></div>;});
+    let html=`<div style="font-weight:700;color:var(--primary-color);margin-bottom:6px">Hotspot</div>`;
+    order.forEach(o=>{ const k=Object.keys(o)[0]; html+=`<div class="legend-item"><div class="legend-color" style="background:${o[k]}"></div><span>${k}</span></div>`;});
     C.innerHTML=html; Lg.style.display='block';
   }
 
